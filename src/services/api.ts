@@ -49,13 +49,7 @@ export const authApi = {
     });
     return res.data;
   },
-  quickLogin: async (role: 'admin' | 'technician', phone?: string) => {
-    const res = await api.post<{ message: string; token: string; user: IUser }>('/auth/quick-login', {
-      role,
-      phone,
-    });
-    return res.data;
-  },
+
   getPublicConfig: async () => {
     const res = await api.get<{ adminPhone: string }>('/auth/config');
     return res.data;

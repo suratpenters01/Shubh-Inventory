@@ -19,7 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isMobileMenuOpen = false,
   onToggleMobileMenu,
 }) => {
-  const { user, logout, quickLogin } = useAuth();
+  const { user, logout } = useAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
@@ -161,35 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Real-Time Live Notification Center */}
           <NotificationBell />
 
-          {/* Quick Demo Switcher with clear Inglish labels - Render only in Development */}
-          {import.meta.env.DEV && (
-            <div className="hidden xl:flex items-center bg-slate-100/90 p-0.5 rounded-xl text-xs border border-slate-200/90 shadow-2xs shrink-0">
-              <button
-                id="switch-admin-btn"
-                onClick={() => quickLogin('admin')}
-                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-bold transition cursor-pointer text-xs ${
-                  user?.role === 'admin'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Shield className="w-3 h-3 text-sky-400" />
-                <span>Admin</span>
-              </button>
-              <button
-                id="switch-tech-btn"
-                onClick={() => quickLogin('technician', '9876500001')}
-                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-bold transition cursor-pointer text-xs ${
-                  user?.role === 'technician'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Wrench className="w-3 h-3 text-emerald-400" />
-                <span>Tech</span>
-              </button>
-            </div>
-          )}
+
 
           {/* User Profile Pill */}
           {user && (

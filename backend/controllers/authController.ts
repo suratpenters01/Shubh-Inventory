@@ -120,60 +120,7 @@ export const authController = {
     }
   },
 
-  async quickLogin(req: Request, res: Response) {
-    try {
-      const { role, phone } = req.body;
-      const adminCreds = getAdminEnvCredentials();
 
-      if (role === 'admin') {
-        let user = await storageService.findUserByPhone(adminCreds.phone);
-        if (!user) {
-          const passwordHash = await bcrypt.hash(adminCreds.password, 10);
-          user = await storageService.createUser({
-            name: process.env.ADMIN_NAME || 'Shubh Sales Administrator',
-            phone: adminCreds.phone,
-            passwordHash,
-            role: 'admin',
-            isActive: true,
-          });
-        }
-        const token = generateToken(user);
-        return res.json({
-          message: 'Admin login successful',
-          token,
-          user: {
-            id: user._id,
-            _id: user._id,
-            name: user.name,
-            phone: user.phone,
-            role: 'admin',
-          },
-        });
-      }
-
-      const targetPhone = (phone || '9876500001').toString().trim();
-      const user = await storageService.findUserByPhone(targetPhone);
-      if (!user) {
-        return res.status(404).json({ error: `Technician with phone ${targetPhone} not found.` });
-      }
-
-      const token = generateToken(user);
-      return res.json({
-        message: 'Quick login successful',
-        token,
-        user: {
-          id: user._id,
-          _id: user._id,
-          name: user.name,
-          phone: user.phone,
-          role: user.role,
-        },
-      });
-    } catch (err: any) {
-      console.error('Quick login error:', err);
-      return res.status(500).json({ error: 'Failed to process quick login.' });
-    }
-  },
 
   async getMe(req: AuthRequest, res: Response) {
     if (!req.user) {

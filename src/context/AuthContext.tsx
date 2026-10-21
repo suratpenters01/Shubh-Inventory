@@ -8,7 +8,6 @@ interface AuthContextType {
   isLoading: boolean;
   login: (phone: string, pass: string) => Promise<void>;
   logout: () => void;
-  quickLogin: (role: 'admin' | 'technician', phone?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -62,16 +61,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const quickLogin = async (role: 'admin' | 'technician', phone?: string) => {
-    const res = await authApi.quickLogin(role, phone);
-    localStorage.setItem('auth_token', res.token);
-    localStorage.setItem('auth_user', JSON.stringify(res.user));
-    setToken(res.token);
-    setUser(res.user);
-  };
-
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, quickLogin }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

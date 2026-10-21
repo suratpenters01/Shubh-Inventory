@@ -6,7 +6,6 @@ const router = Router();
 
 router.get('/config', authController.getPublicConfig);
 router.post('/login', authController.login);
-router.post('/quick-login', authController.quickLogin);
 router.get('/me', requireAuth, authController.getMe);
 
 export default router;
