@@ -40,14 +40,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Intercept 401 Unauthorized to trigger clean logout if expired
+// Intercept 401 Unauthorized cleanly without wiping storage prematurely
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      if (window.location.pathname !== '/login') {
+      // Only clear and redirect if the session check (/auth/me) explicitly fails
+      const isSessionCheck = error.config?.url?.includes('/auth/me');
+      if (isSessionCheck) {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

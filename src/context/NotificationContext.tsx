@@ -80,23 +80,29 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
-    const token = localStorage.getItem('auth_token');
-    if (!token) return;
-
     // Initial load
     refreshNotifications();
 
+    let retryCount = 0;
+
     const connectSSE = () => {
+      const activeToken = localStorage.getItem('auth_token');
+      if (!activeToken) {
+        setIsConnected(false);
+        return;
+      }
+
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
 
-      const streamUrl = `/api/notifications/stream?token=${encodeURIComponent(token)}`;
+      const streamUrl = `/api/notifications/stream?token=${encodeURIComponent(activeToken)}`;
       const es = new EventSource(streamUrl);
       eventSourceRef.current = es;
 
       es.onopen = () => {
         setIsConnected(true);
+        retryCount = 0;
       };
 
       // Listen for initial batch
@@ -143,9 +149,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       es.onerror = () => {
         setIsConnected(false);
         es.close();
-        // Exponential reconnect with 3s jitter
+        retryCount += 1;
+        // Exponential backoff up to 30 seconds
+        const delay = Math.min(3000 * Math.pow(1.5, retryCount), 30000);
         if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = setTimeout(connectSSE, 3000);
+        if (localStorage.getItem('auth_token')) {
+          reconnectTimeoutRef.current = setTimeout(connectSSE, delay);
+        }
       };
     };
 
