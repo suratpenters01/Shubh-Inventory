@@ -8,8 +8,21 @@ import {
   IReconciliationResponse,
   IDashboardStats,
   INotification,
-  IInventoryItem,
 } from '../types';
+
+export interface IInventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  code: string;
+  sku?: string;
+  quantity: number;
+  unit: string;
+  minStock: number;
+  price: number;
+  location: string;
+  updatedAt: string;
+}
 
 const api = axios.create({
   baseURL: '/api',
