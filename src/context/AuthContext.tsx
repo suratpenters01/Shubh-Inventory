@@ -63,12 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const quickLogin = async (role: 'admin' | 'technician', phone?: string) => {
-    if (role === 'admin') {
-      await login('9876543210', 'admin123');
-    } else {
-      const targetPhone = phone || '9876500001';
-      await login(targetPhone, 'tech123');
-    }
+    const res = await authApi.quickLogin(role, phone);
+    localStorage.setItem('auth_token', res.token);
+    localStorage.setItem('auth_user', JSON.stringify(res.user));
+    setToken(res.token);
+    setUser(res.user);
   };
 
   return (

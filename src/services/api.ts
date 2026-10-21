@@ -8,6 +8,7 @@ import {
   IReconciliationResponse,
   IDashboardStats,
   INotification,
+  IInventoryItem,
 } from '../types';
 
 const api = axios.create({
@@ -46,6 +47,17 @@ export const authApi = {
       phone,
       password,
     });
+    return res.data;
+  },
+  quickLogin: async (role: 'admin' | 'technician', phone?: string) => {
+    const res = await api.post<{ message: string; token: string; user: IUser }>('/auth/quick-login', {
+      role,
+      phone,
+    });
+    return res.data;
+  },
+  getPublicConfig: async () => {
+    const res = await api.get<{ adminPhone: string }>('/auth/config');
     return res.data;
   },
   getMe: async () => {
@@ -369,6 +381,75 @@ export const notificationApi = {
     } catch {
       return { success: true };
     }
+  },
+};
+
+export const inventoryApi = {
+  getAll: async (params?: { search?: string; category?: string }) => {
+    const res = await api.get<{
+      success: boolean;
+      count: number;
+      items: IInventoryItem[];
+      summary: {
+        totalItems: number;
+        lowStockCount: number;
+        totalQuantity: number;
+        totalValuation: number;
+        categories: string[];
+      };
+    }>('/inventory', { params });
+    return res.data;
+  },
+
+  getById: async (id: string) => {
+    const res = await api.get<{ success: boolean; item: IInventoryItem }>(`/inventory/${id}`);
+    return res.data.item;
+  },
+
+  create: async (data: {
+    name: string;
+    category: string;
+    code: string;
+    quantity: number;
+    unit?: string;
+    minStock?: number;
+    price?: number;
+    location?: string;
+  }) => {
+    const res = await api.post<{ success: boolean; message: string; item: IInventoryItem }>('/inventory', data);
+    return res.data;
+  },
+
+  update: async (
+    id: string,
+    data: Partial<{
+      name: string;
+      category: string;
+      code: string;
+      quantity: number;
+      unit: string;
+      minStock: number;
+      price: number;
+      location: string;
+    }>
+  ) => {
+    const res = await api.put<{ success: boolean; message: string; item: IInventoryItem }>(`/inventory/${id}`, data);
+    return res.data;
+  },
+
+  delete: async (id: string) => {
+    const res = await api.delete<{ success: boolean; message: string }>(`/inventory/${id}`);
+    return res.data;
+  },
+
+  reset: async () => {
+    const res = await api.post<{
+      success: boolean;
+      message: string;
+      count: number;
+      items: IInventoryItem[];
+    }>('/inventory/reset');
+    return res.data;
   },
 };
 

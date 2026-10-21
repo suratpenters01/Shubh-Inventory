@@ -1,17 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { authApi } from '../services/api';
 import { ShieldCheck, Wrench, AlertCircle, ArrowRight } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const [phone, setPhone] = useState('9876543210');
-  const [password, setPassword] = useState('admin123');
+  const [phone, setPhone] = useState('9408197990');
+  const [password, setPassword] = useState('');
+  const [adminPhone, setAdminPhone] = useState('9408197990');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login, quickLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    // Fetch configured admin phone dynamically from server (.env)
+    authApi.getPublicConfig().then((cfg) => {
+      if (cfg?.adminPhone) {
+        setAdminPhone(cfg.adminPhone);
+        setPhone(cfg.adminPhone);
+      }
+    }).catch(() => {
+      // Fallback already preset
+    });
+  }, []);
 
   const from = (location.state as any)?.from?.pathname || '/dashboard';
 
@@ -142,8 +156,8 @@ export const LoginPage: React.FC = () => {
                     <ShieldCheck className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-900">Warehouse Manager (Admin)</p>
-                    <p className="text-[11px] text-sky-700/90 font-medium">Suresh Verma • 9876543210</p>
+                    <p className="text-xs font-bold text-slate-900">Administrator (Central Warehouse)</p>
+                    <p className="text-[11px] text-sky-700/90 font-medium">Admin • {adminPhone}</p>
                   </div>
                 </div>
                 <span className="text-[11px] font-bold text-sky-700 bg-white px-2.5 py-1 rounded-lg shadow-2xs border border-sky-200/60 group-hover:bg-sky-600 group-hover:text-white transition">

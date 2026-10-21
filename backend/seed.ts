@@ -602,22 +602,42 @@ export async function resetAndSeedPureitData(force = false) {
   console.log('       Techs: Phone 9876500001 (Rajesh), 9876500002 (Amit), 9876500003 (Priya), 9876500004 (Vikram) / Password tech123');
 }
 
+export async function syncAdminWithEnv() {
+  const adminPhone = (process.env.INITIAL_ADMIN_PHONE || process.env.ADMIN_PHONE || '9408197990').toString().trim();
+  const adminPassword = (process.env.INITIAL_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'Shubh@123').toString().trim();
+  const adminName = process.env.ADMIN_NAME || 'Shubh Sales Administrator';
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+
+  const existing = await storageService.findUserByPhone(adminPhone);
+  if (existing) {
+    await storageService.updateUser(existing._id, {
+      name: adminName,
+      passwordHash: adminPasswordHash,
+      role: 'admin',
+      isActive: true,
+    });
+    console.log(`[SEED] Admin credentials successfully synced from .env for phone: ${adminPhone}`);
+  } else {
+    await storageService.createUser({
+      name: adminName,
+      phone: adminPhone,
+      passwordHash: adminPasswordHash,
+      role: 'admin',
+      isActive: true,
+    });
+    console.log(`[SEED] Admin user successfully created from .env for phone: ${adminPhone}`);
+  }
+}
+
 export async function resetToZeroStock() {
   console.log('[SEED] Purging all transactions and setting all stock to ZERO (0) for fresh user entry...');
   await storageService.clearAllData();
 
-  // 1. Seed Admin
-  const adminPasswordHash = await bcrypt.hash('admin123', 10);
-  await storageService.createUser({
-    name: 'Suresh Verma (Central Warehouse)',
-    phone: '9876543210',
-    passwordHash: adminPasswordHash,
-    role: 'admin',
-    isActive: true,
-  });
+  // 1. Seed Admin from .env variables
+  await syncAdminWithEnv();
 
   // 2. Seed Technicians
-  const techPasswordHash = await bcrypt.hash('tech123', 10);
+  const techPasswordHash = await bcrypt.hash('Tech@123', 10);
   await storageService.createUser({
     name: 'Rajesh Kumar',
     phone: '9876500001',
@@ -668,7 +688,9 @@ export async function resetToZeroStock() {
 }
 
 export async function seedDatabase() {
-  // Always initialize with 0 stock as requested by user
+  // Always initialize with 0 stock as requested by user, and keep admin in sync with .env
   await resetToZeroStock();
+  await syncAdminWithEnv();
 }
+
 

@@ -114,6 +114,32 @@ const IdempotencyRecordSchema = new Schema({
 });
 IdempotencyRecordSchema.index({ key: 1, userId: 1, endpoint: 1 }, { unique: true });
 
+// --- Inventory Management Schema (Always Seeded & Full CRUD) ---
+export interface IInventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  code: string;
+  quantity: number;
+  unit: string;
+  minStock: number;
+  price: number;
+  location: string;
+  updatedAt: string;
+}
+
+const InventorySchema = new Schema({
+  name: { type: String, required: true },
+  category: { type: String, required: true },
+  code: { type: String, required: true, unique: true },
+  quantity: { type: Number, required: true, default: 0 },
+  unit: { type: String, default: 'pcs' },
+  minStock: { type: Number, default: 5 },
+  price: { type: Number, default: 0 },
+  location: { type: String, default: 'Main Warehouse' },
+  updatedAt: { type: Date, default: Date.now },
+});
+
 export const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
 export const ItemModel = mongoose.models.Item || mongoose.model('Item', ItemSchema);
 export const StockTransactionModel = mongoose.models.StockTransaction || mongoose.model('StockTransaction', StockTransactionSchema);
@@ -121,12 +147,14 @@ export const WarehouseBalanceModel = mongoose.models.WarehouseBalance || mongoos
 export const TechnicianBalanceModel = mongoose.models.TechnicianBalance || mongoose.model('TechnicianBalance', TechnicianBalanceSchema);
 export const ReturnRequestModel = mongoose.models.ReturnRequest || mongoose.model('ReturnRequest', ReturnRequestSchema);
 export const IdempotencyRecordModel = mongoose.models.IdempotencyRecord || mongoose.model('IdempotencyRecord', IdempotencyRecordSchema);
+export const InventoryModel = mongoose.models.Inventory || mongoose.model('Inventory', InventorySchema);
 
 // --- High Performance In-Memory / Hybrid Transactional Engine ---
 // Provides full MongoDB & Mongoose semantic parity when MongoDB daemon is not running locally.
 class InMemoryDatabase {
   users: Map<string, IUser> = new Map();
   items: Map<string, IItem> = new Map();
+  inventory: Map<string, IInventoryItem> = new Map();
   transactions: IStockTransaction[] = [];
   warehouseBalances: Map<string, IWarehouseBalance> = new Map(); // key = itemId
   technicianBalances: Map<string, ITechnicianBalance> = new Map(); // key = `${techId}_${itemId}`
@@ -136,6 +164,7 @@ class InMemoryDatabase {
   clearAll() {
     this.users.clear();
     this.items.clear();
+    this.inventory.clear();
     this.transactions = [];
     this.warehouseBalances.clear();
     this.technicianBalances.clear();
@@ -151,6 +180,7 @@ class InMemoryDatabase {
     return {
       users: new Map(Array.from(this.users.entries()).map(([k, v]) => [k, { ...v }])),
       items: new Map(Array.from(this.items.entries()).map(([k, v]) => [k, { ...v }])),
+      inventory: new Map(Array.from(this.inventory.entries()).map(([k, v]) => [k, { ...v }])),
       transactions: this.transactions.map((t) => ({ ...t })),
       warehouseBalances: new Map(Array.from(this.warehouseBalances.entries()).map(([k, v]) => [k, { ...v }])),
       technicianBalances: new Map(Array.from(this.technicianBalances.entries()).map(([k, v]) => [k, { ...v }])),
@@ -161,6 +191,7 @@ class InMemoryDatabase {
   restoreState(state: any) {
     this.users = state.users;
     this.items = state.items;
+    this.inventory = state.inventory || new Map();
     this.transactions = state.transactions;
     this.warehouseBalances = state.warehouseBalances;
     this.technicianBalances = state.technicianBalances;
@@ -176,21 +207,51 @@ export const inMemoryDb = new InMemoryDatabase();
 
 let isConnectedToMongo = false;
 
+function sanitizeMongoUri(raw: string): string {
+  try {
+    const trimmed = raw.trim();
+    const prefixMatch = trimmed.match(/^(mongodb(?:\+srv)?:\/\/)(.*)$/);
+    if (!prefixMatch) return trimmed;
+    const prefix = prefixMatch[1];
+    const rest = prefixMatch[2];
+
+    const lastAtIndex = rest.lastIndexOf('@');
+    if (lastAtIndex === -1) return trimmed;
+
+    const userInfo = rest.substring(0, lastAtIndex);
+    const hostAndQuery = rest.substring(lastAtIndex + 1);
+
+    const colonIndex = userInfo.indexOf(':');
+    if (colonIndex === -1) return trimmed;
+
+    const username = userInfo.substring(0, colonIndex);
+    const password = userInfo.substring(colonIndex + 1);
+
+    const cleanUsername = encodeURIComponent(decodeURIComponent(username));
+    const cleanPassword = encodeURIComponent(decodeURIComponent(password));
+
+    return `${prefix}${cleanUsername}:${cleanPassword}@${hostAndQuery}`;
+  } catch {
+    return raw.trim();
+  }
+}
+
 export async function initDatabase() {
-  const mongoUri = process.env.MONGO_URI;
-  if (mongoUri) {
+  const rawUri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
+  if (rawUri && rawUri.trim()) {
+    const sanitizedUri = sanitizeMongoUri(rawUri);
     try {
-      console.log(`[DB] Attempting MongoDB connection to ${mongoUri}...`);
-      await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 2500 });
+      console.log(`[DB] Attempting MongoDB connection to cluster...`);
+      await mongoose.connect(sanitizedUri, { serverSelectionTimeoutMS: 5000 });
       isConnectedToMongo = true;
-      console.log('[DB] Successfully connected to MongoDB.');
+      console.log('[DB] Successfully connected to MongoDB Atlas / Remote Cluster.');
       return;
     } catch (err: any) {
       console.warn(`[DB] Could not connect to external MongoDB: ${err.message}. Using built-in ACID transactional in-memory database engine.`);
       isConnectedToMongo = false;
     }
   } else {
-    console.log('[DB] No MONGO_URI specified. Operating with built-in transactional in-memory database engine.');
+    console.log('[DB] No MONGODB_URI or MONGO_URI specified. Operating with built-in transactional in-memory database engine.');
   }
 }
 
