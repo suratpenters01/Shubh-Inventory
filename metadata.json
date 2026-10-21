@@ -1,0 +1,6 @@
+{
+  "name": "Field Service Stock & Inventory Management System",
+  "description": "Full-stack ledger-based spare parts and filter stock management system for water-purifier field service operations with central warehouse tracking, technician balances, and audit reconciliation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

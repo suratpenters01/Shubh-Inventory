@@ -1,0 +1,48 @@
+{
+  "users": [
+    [
+      "6ac88d90a961a9444091b9ad",
+      {
+        "_id": "6ac88d90a961a9444091b9ad",
+        "name": "Rajesh Kumar Tech",
+        "email": "tech@example.com",
+        "role": "technician",
+        "phone": "9876500001",
+        "passwordHash": "test_hash",
+        "isActive": true
+      }
+    ],
+    [
+      "6ac88d90a961a9444091b9ae",
+      {
+        "_id": "6ac88d90a961a9444091b9ae",
+        "name": "Central Admin",
+        "email": "admin@example.com",
+        "role": "admin",
+        "phone": "9876500000",
+        "passwordHash": "test_hash",
+        "isActive": true
+      }
+    ]
+  ],
+  "items": [
+    [
+      "6ac88d90a961a9444091b9ac",
+      {
+        "_id": "6ac88d90a961a9444091b9ac",
+        "itemCode": "PUR-GKK1-MEM",
+        "itemName": "Pureit GKK 1 Filter Kit",
+        "category": "GKK1",
+        "unit": "kit",
+        "price": 2900,
+        "lowStockThreshold": 5,
+        "reorderLevel": 5,
+        "isActive": true
+      }
+    ]
+  ],
+  "transactions": [],
+  "warehouseBalances": [],
+  "technicianBalances": [],
+  "returnRequests": []
+}
