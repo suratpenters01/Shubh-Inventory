@@ -33,6 +33,22 @@ export const storageService = {
     return null;
   },
 
+  async findUserByPhoneOrEmail(identifier: string): Promise<IUser | null> {
+    const clean = identifier.trim();
+    if (isMongoConnected()) {
+      const doc = await UserModel.findOne({
+        $or: [{ phone: clean }, { email: clean.toLowerCase() }],
+      }).lean();
+      return doc ? (doc as any) : null;
+    }
+    for (const u of inMemoryDb.users.values()) {
+      if (u.phone === clean || (u.email && u.email.toLowerCase() === clean.toLowerCase())) {
+        return { ...u };
+      }
+    }
+    return null;
+  },
+
   async findUserById(id: string): Promise<IUser | null> {
     if (!id || typeof id !== 'string' || !Types.ObjectId.isValid(id)) {
       return null;
@@ -58,6 +74,7 @@ export const storageService = {
       createdAt: userData.createdAt || new Date(),
     };
     inMemoryDb.users.set(_id, newUser);
+    inMemoryDb.scheduleSave();
     return { ...newUser };
   },
 
@@ -94,6 +111,7 @@ export const storageService = {
       _id: id,
     };
     inMemoryDb.users.set(id, updated);
+    inMemoryDb.scheduleSave();
     return { ...updated };
   },
 
@@ -105,7 +123,9 @@ export const storageService = {
       const res = await UserModel.findByIdAndDelete(id);
       return !!res;
     }
-    return inMemoryDb.users.delete(id);
+    const res = inMemoryDb.users.delete(id);
+    inMemoryDb.scheduleSave();
+    return res;
   },
 
   // --- ITEMS ---
@@ -204,6 +224,7 @@ export const storageService = {
       quantity: 0,
       lastUpdated: new Date(),
     });
+    inMemoryDb.scheduleSave();
     return { ...newItem };
   },
 
@@ -237,6 +258,7 @@ export const storageService = {
       reorderLevel: normalizedUpdates.reorderLevel ?? existing.reorderLevel ?? existing.lowStockThreshold ?? 5,
     };
     inMemoryDb.items.set(id, updated);
+    inMemoryDb.scheduleSave();
     return { ...updated };
   },
 
@@ -309,6 +331,7 @@ export const storageService = {
     bal.quantity = Math.round((bal.quantity + delta) * 100) / 100;
     bal.lastUpdated = new Date();
     inMemoryDb.warehouseBalances.set(itemId, bal);
+    inMemoryDb.scheduleSave();
     return bal.quantity;
   },
 
@@ -334,6 +357,7 @@ export const storageService = {
       bal.lastUpdated = new Date();
     }
     inMemoryDb.warehouseBalances.set(itemId, bal);
+    inMemoryDb.scheduleSave();
   },
 
   async getAllWarehouseBalances(): Promise<Array<{ item: IItem; quantity: number; lastUpdated: Date | string }>> {
@@ -386,6 +410,7 @@ export const storageService = {
     bal.quantity = Math.round((bal.quantity + delta) * 100) / 100;
     bal.lastUpdated = new Date();
     inMemoryDb.technicianBalances.set(key, bal);
+    inMemoryDb.scheduleSave();
     return bal.quantity;
   },
 
@@ -413,6 +438,7 @@ export const storageService = {
       bal.lastUpdated = new Date();
     }
     inMemoryDb.technicianBalances.set(key, bal);
+    inMemoryDb.scheduleSave();
   },
 
   async getBalancesForTechnician(technicianId: string): Promise<Array<{ item: IItem; quantity: number }>> {
@@ -484,6 +510,7 @@ export const storageService = {
       createdAt: txData.createdAt || new Date(),
     };
     inMemoryDb.transactions.unshift(newTx); // newest first
+    inMemoryDb.scheduleSave();
     return { ...newTx };
   },
 
@@ -707,8 +734,11 @@ export const storageService = {
 
     const reconciliationList: IReconciliationItem[] = [];
 
-    for (const item of items) {
-      const itemId = item._id.toString();
+    for (const rawItem of items) {
+      const item = (Array.isArray(rawItem) ? rawItem[1] : rawItem) as IItem;
+      if (!item) continue;
+      const itemId = (item._id || (item as any).id)?.toString();
+      if (!itemId) continue;
 
       // Ledger audit sums
       let totalPurchased = 0;
@@ -720,7 +750,8 @@ export const storageService = {
 
       // Filter transactions for this item
       const itemTxList = allTransactions.filter((tx) => {
-        const txItemId = typeof tx.item === 'string' ? tx.item : tx.item?._id?.toString();
+        if (!tx || !tx.item) return false;
+        const txItemId = typeof tx.item === 'string' ? tx.item : (tx.item._id || (tx.item as any).id)?.toString();
         return txItemId === itemId;
       });
 
@@ -756,8 +787,12 @@ export const storageService = {
       let currentWarehouse = await this.getWarehouseBalance(itemId);
       let currentTechTotal = 0;
 
-      for (const tech of technicians) {
-        const tQty = await this.getTechnicianBalance(tech._id.toString(), itemId);
+      for (const rawTech of technicians) {
+        const tech = (Array.isArray(rawTech) ? rawTech[1] : rawTech) as IUser;
+        if (!tech) continue;
+        const techId = (tech._id || (tech as any).id)?.toString();
+        if (!techId) continue;
+        const tQty = await this.getTechnicianBalance(techId, itemId);
         currentTechTotal += tQty;
       }
       currentTechTotal = Math.round(currentTechTotal * 100) / 100;
@@ -769,14 +804,17 @@ export const storageService = {
           currentWarehouse = calculatedWarehouse;
         }
         // Resync individual technician balances from ledger if discrepancy
-        for (const tech of technicians) {
-          const techId = tech._id.toString();
+        for (const rawTech of technicians) {
+          const tech = (Array.isArray(rawTech) ? rawTech[1] : rawTech) as IUser;
+          if (!tech) continue;
+          const techId = (tech._id || (tech as any).id)?.toString();
+          if (!techId) continue;
           let techItemIssued = 0;
           let techItemUsed = 0;
           let techItemReturned = 0;
 
           for (const tx of itemTxList) {
-            const txTechId = typeof tx.technician === 'string' ? tx.technician : tx.technician?._id?.toString();
+            const txTechId = typeof tx.technician === 'string' ? tx.technician : (tx.technician?._id || (tx.technician as any)?.id)?.toString();
             if (txTechId === techId) {
               const qty = Number(tx.quantity) || 0;
               if (tx.transactionType === 'ISSUE_TO_TECH') techItemIssued += qty;
@@ -789,8 +827,12 @@ export const storageService = {
         }
         // Re-read current tech total after resync
         currentTechTotal = 0;
-        for (const tech of technicians) {
-          currentTechTotal += await this.getTechnicianBalance(tech._id.toString(), itemId);
+        for (const rawTech of technicians) {
+          const tech = (Array.isArray(rawTech) ? rawTech[1] : rawTech) as IUser;
+          if (!tech) continue;
+          const techId = (tech._id || (tech as any).id)?.toString();
+          if (!techId) continue;
+          currentTechTotal += await this.getTechnicianBalance(techId, itemId);
         }
         currentTechTotal = Math.round(currentTechTotal * 100) / 100;
       }
